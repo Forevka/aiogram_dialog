@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Union
+from typing import Optional, Union, Dict, Generic, TypeVar
 
 from aiogram import Dispatcher
 from aiogram.dispatcher import FSMContext
@@ -9,11 +9,12 @@ from aiogram.utils.exceptions import MessageNotModified
 from .data import DialogData
 from .step import Step
 
+T = TypeVar('T')
 
-class Dialog:
+class Dialog(Generic[T]):
     def __init__(
             self,
-            steps: Dict[State, Step],
+            steps: Dict[State, Step[T]],
             can_cancel: bool = True,
             can_back: bool = True,
             can_done: bool = False,
@@ -76,7 +77,7 @@ class Dialog:
     async def on_done(self, m: Message, dialog_data: Dict, *args, **kwargs):
         pass
 
-    async def done(self, m: Message, dialog_data: DialogData, args, kwargs):
+    async def done(self, m: Message, dialog_data: DialogData[T], args, kwargs):
         data = await dialog_data.data()
         await self._do_finish(m, dialog_data)
         await self.on_done(m, dialog_data=data, *args, **kwargs)
@@ -87,7 +88,7 @@ class Dialog:
     async def on_cancel(self, m: Message, *args, **kwargs):
         pass
 
-    async def cancel(self, m: Message, dialog_data: DialogData, args, kwargs):
+    async def cancel(self, m: Message, dialog_data: DialogData[T], args, kwargs):
         await self._do_finish(m, dialog_data)
         await self.on_cancel(m, *args, **kwargs)
         for c in self.cancel_callbacks:
@@ -97,7 +98,7 @@ class Dialog:
     async def on_finish(self, m: Message, *args, **kwargs):
         pass
 
-    async def _do_finish(self, m: Message, dialog_data: DialogData):
+    async def _do_finish(self, m: Message, dialog_data: DialogData[T]):
         oldmsg_id = await dialog_data.message_id()
         if oldmsg_id:
             try:
@@ -114,7 +115,7 @@ class Dialog:
     async def on_start(self, m: Message, *args, **kwargs):
         pass
 
-    async def start(self, m: Message, state: FSMContext, dialog_data: Optional = None, next_state: str = NotImplemented,
+    async def start(self, m: Message, state: FSMContext, dialog_data: Optional[T] = None, next_state: str = NotImplemented,
                     *args, **kwargs):
         real_dialog_data = DialogData(self.dialog_field, state)
         real_dialog_data.update(dialog_data)
@@ -128,7 +129,7 @@ class Dialog:
     async def on_back(self, m: Message, *args, **kwargs):
         pass
 
-    async def back(self, c: CallbackQuery, dialog_data: DialogData, args, kwargs):
+    async def back(self, c: CallbackQuery, dialog_data: DialogData[T], args, kwargs):
         current_state = await dialog_data.state.get_state()
         current_step: Step = self.steps[current_state]
         await self.on_back(c.message, *args, **kwargs)
@@ -144,7 +145,7 @@ class Dialog:
     async def on_next(self, m: Message, *args, **kwargs):
         pass
 
-    async def next(self, current_state: str, m: Message, dialog_data: DialogData, edit: bool,
+    async def next(self, current_state: str, m: Message, dialog_data: DialogData[T], edit: bool,
                    error: Optional[Exception], next_state: Union[str, "Dialog", None],
                    args, kwargs):
         await self.on_next(m, args, kwargs)

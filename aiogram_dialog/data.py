@@ -1,11 +1,17 @@
-from typing import Optional, Union, Dict
+from typing import NewType, Optional, Union, Dict, Generic, TypeVar
 
+from aiogram.utils.mixins import DataMixin
 from aiogram.dispatcher import FSMContext
 
-NOT_FILLED = object()
+T = TypeVar('T')
 
+class DataHolder(Generic[T], DataMixin):
+    def update(self, data: Dict):
+        self.data.update(data)
 
-class DialogData:
+NOT_FILLED = DataHolder[T]()
+
+class DialogData(Generic[T]):
     STATE_FIELD = "old_state"
     MSG_FIELD = "last_message"
     DATA_FIELD = "data"
@@ -16,7 +22,7 @@ class DialogData:
         self.field_changes = {}
         self.field_deletes = set()
         self.changes = {}
-        self._data: Union[Dict, NOT_FILLED] = NOT_FILLED  # cache of field data
+        self._data: T = NOT_FILLED # cache of field data
 
     def _dialog_data(self, data):
         if not self.dialog_field:

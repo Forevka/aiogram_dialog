@@ -1,10 +1,12 @@
-from typing import Tuple, Optional, Any, Sequence, Union
+from aiogram_dialog.utils.field import Field
+from typing import Generic, Tuple, Optional, Any, Sequence, Union, TypeVar
 
 from aiogram.dispatcher.filters.state import State
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 
+T = TypeVar('T')
 
-class Step:
+class Step(Generic[T]):
     def __init__(
             self,
             prompt: str = "",
@@ -13,7 +15,7 @@ class Step:
             can_back: bool = True,
             can_done: bool = True,
             can_skip: bool = True,
-            field: Optional[str] = None,
+            field: Optional[Field] = None,
             back: State = NotImplemented,
             next: State = NotImplemented
     ):
@@ -52,7 +54,9 @@ class Step:
         pass
 
     def field(self) -> Optional[str]:
-        return self._field
+        if (self._field):
+            return self._field.field_name
+        return ''
 
     async def process_callback(self, callback: CallbackQuery, current_data,
                                *args, **kwargs) -> Tuple[Any, Optional[str]]:
@@ -92,7 +96,7 @@ class DataStep(Step):
         self.unchecked_prefix = unchecked_prefix
         self.reorder_variants_by = reorder_variants_by
 
-    async def process_callback(self, callback: CallbackQuery, current_data,
+    async def process_callback(self, callback: CallbackQuery, current_data: T,
                                *args, **kwargs) -> Tuple[Any, Optional[str]]:
         value = self.type_factory(callback.data)
         if self.multiple:
@@ -104,7 +108,7 @@ class DataStep(Step):
                 return filtered_value, self.next
         return value, self.next
 
-    async def process_message(self, message: Message, current_data,
+    async def process_message(self, message: Message, current_data: T,
                               *args, **kwargs) -> Tuple[Any, Optional[str]]:
         if not self.allow_text:
             raise ValueError
@@ -115,10 +119,10 @@ class DataStep(Step):
             return res + [value], self.next
         return value, self.next
 
-    async def get_variants(self, current_data, *args, **kwargs):
+    async def get_variants(self, current_data: T, *args, **kwargs):
         return self.variants
 
-    async def render_kbd(self, current_data, *args, **kwargs) -> Optional[InlineKeyboardMarkup]:
+    async def render_kbd(self, current_data: T, *args, **kwargs) -> Optional[InlineKeyboardMarkup]:
         kbd = InlineKeyboardMarkup()
         variants = await self.get_variants(current_data, *args, **kwargs)
         field = self.field()
@@ -139,7 +143,7 @@ class DataStep(Step):
 
 
 class StateStep(DataStep):
-    async def process_callback(self, callback: CallbackQuery, current_data,
+    async def process_callback(self, callback: CallbackQuery, current_data: T,
                                *args, **kwargs) -> Tuple[Any, Optional[str]]:
         for title, data, *rest in await self.get_variants(current_data, *args, **kwargs):
             if data != callback.data:

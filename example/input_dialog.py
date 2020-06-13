@@ -4,28 +4,34 @@ from aiogram import Bot, Dispatcher, executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State
 from aiogram.types import Message
-
+from abc import ABCMeta, abstractmethod
 from aiogram_dialog import Dialog, DataStep
+from aiogram_dialog import Field
 
 API_TOKEN = 'BOT TOKEN HERE'
 
+class UserAnswers:
+    name = Field[str]('name')
+    biggerThanEighteen = Field[str]('biggerThanEighteen')
+    height = Field[int]('height')
 
-async def input_done(m: Message, dialog_data, *args, **kwargs):
-    if dialog_data['18+'] == 'yes':
+
+async def input_done(m: Message, dialog_data: UserAnswers, *args, **kwargs):
+    if dialog_data.biggerThanEighteen == 'yes':
         await m.answer(
-            f"Спасибо за вашу анкету, {dialog_data['name']}. "
-            f"Наверно, тяжело иметь рост {dialog_data['height']} после 18 лет")
+            f"Спасибо за вашу анкету, {dialog_data.name}. "
+            f"Наверно, тяжело иметь рост {dialog_data.height} после 18 лет")
     else:
         await m.answer(
-            f"Спасибо за вашу анкету, {dialog_data['name']}. "
-            f"Наверно, тяжело иметь рост {dialog_data['height']}, когда ещё нет даже 18 лет")
+            f"Спасибо за вашу анкету, {dialog_data.name}. "
+            f"Наверно, тяжело иметь рост {dialog_data.name}, когда ещё нет даже 18 лет")
 
 
-dialog = Dialog(
+dialog = Dialog[UserAnswers](
     steps={
         State("1"): DataStep(
             prompt="Введите ваше имя",
-            field="name"
+            field=UserAnswers.name,
         ),
         State("2"): DataStep(
             prompt="Вам уже есть 18 лет?",
@@ -34,13 +40,13 @@ dialog = Dialog(
                 ("Нет", "no")
             ],
             reorder_variants_by=2,
-            field="18+",
+            field=UserAnswers.biggerThanEighteen,
         ),
         State("3"): DataStep(
             prompt="Введите ваш рост",
             error_msg="Ошибка, введите целое число!\n\n",
             type_factory=int,
-            field="height",
+            field=UserAnswers.height,
         ),
     }
 )
